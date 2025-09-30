@@ -102,11 +102,45 @@ docker push <acr_login_server>/splunk-ai-agent:latest
 
 The repository includes a GitHub Actions workflow that builds the Docker image and pushes it to Azure Container Registry on every push to the `main` branch.
 
-Required repository secrets:
+Required repository secrets (GitHub → Settings → Secrets and variables → Actions):
 
-- `AZURE_CREDENTIALS`: Service principal credentials in JSON format for `az login`.
+- `ARM_CLIENT_ID`: Service principal application (client) ID.
+- `ARM_CLIENT_SECRET`: Client secret for the service principal.
+- `ARM_SUBSCRIPTION_ID`: Azure subscription to target for deployments.
+- `ARM_TENANT_ID`: Azure AD tenant that owns the subscription.
 - `ACR_NAME`: Name of the Azure Container Registry.
 - `ACR_LOGIN_SERVER`: Login server of the Azure Container Registry (e.g., `myregistry.azurecr.io`).
+
+> These are the only values the workflow needs. The application-specific environment variables in [Environment Variables](#environment-variables)
+> are meant for the running API (for example via a local `.env` file, container runtime configuration, or your hosting service) and do **not**
+> need to be duplicated as GitHub Actions secrets unless you explicitly use them in the workflow.
+
+### Using discrete ARM credentials instead of `az login`
+
+If you prefer not to store the full `AZURE_CREDENTIALS` JSON blob, GitHub Actions can authenticate to Azure using the discrete
+ARM environment variables that Azure tooling expects:
+
+- `ARM_CLIENT_ID`
+- `ARM_CLIENT_SECRET`
+- `ARM_SUBSCRIPTION_ID`
+- `ARM_TENANT_ID`
+
+Create each of these values as **repository secrets** in GitHub (Settings → Secrets and variables → Actions → New repository
+secret). Then, reference them in the workflow either by setting them as environment variables or by passing them directly to
+the [`azure/login`](https://github.com/Azure/login) action:
+
+```yaml
+    - name: Azure login
+      uses: azure/login@v2
+      with:
+        client-id: ${{ secrets.ARM_CLIENT_ID }}
+        tenant-id: ${{ secrets.ARM_TENANT_ID }}
+        subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+        client-secret: ${{ secrets.ARM_CLIENT_SECRET }}
+```
+
+Once authenticated, subsequent steps (such as `azure/cli` or `az acr login`) will reuse the established session without
+needing an explicit `az login` command.
 
 Workflow steps:
 
@@ -116,6 +150,9 @@ Workflow steps:
 4. Tag and push the image to the specified Azure Container Registry.
 
 ## Environment Variables
+
+Set these values for the FastAPI service itself—typically in a local `.env` file during development or via your deployment platf
+orm's configuration. They are not required in GitHub Actions unless a workflow step reads them explicitly.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
