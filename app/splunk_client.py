@@ -55,11 +55,13 @@ class SplunkClient:
 
     def _request(self, method: str, path: str, **kwargs: Any) -> requests.Response:
         url = f"{self.base_url}{path}"
+        logger.debug("Calling Splunk API %s %s", method, url)
         try:
             response = self.session.request(method, url, timeout=self.timeout, **kwargs)
         except requests.RequestException as exc:  # pragma: no cover - network failure.
             logger.exception("Error calling Splunk API: %s %s", method, url)
-            raise SplunkClientError("Failed to communicate with Splunk API") from exc
+            error_message = f"Failed to communicate with Splunk API: {exc}"
+            raise SplunkClientError(error_message) from exc
 
         if not response.ok:
             logger.error(

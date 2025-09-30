@@ -54,6 +54,33 @@ docker build -t splunk-ai-agent:latest .
 docker run --rm -p 8000:8000 --env-file .env splunk-ai-agent:latest
 ```
 
+### Troubleshooting Splunk Connectivity
+
+If the `/ask` endpoint returns a `502` error with the message `Failed to communicate with Splunk API`, use the following steps to debug:
+
+1. **Enable debug logging**
+
+   Set `LOG_LEVEL=DEBUG` in your environment before starting the app. This prints the exact Splunk endpoint that is being called.
+
+2. **Validate credentials and network access**
+
+   Use `curl` or `requests` from the same machine running the FastAPI service to ensure you can reach the Splunk management port:
+
+   ```bash
+   curl -k -u "$SPLUNK_USERNAME:$SPLUNK_PASSWORD" \
+        "$SPLUNK_SCHEME://$SPLUNK_HOST:$SPLUNK_PORT/services/server/info"
+   ```
+
+   A successful response returns XML describing the Splunk server. If the command times out or fails, check firewall rules or VPN connectivity.
+
+3. **Check SSL settings**
+
+   The app honours the `SPLUNK_VERIFY_SSL` flag. Set it to `false` when Splunk uses self-signed certificates. When the certificate chain is valid, keep it as `true` to avoid MITM issues.
+
+4. **Confirm Splunk REST API availability**
+
+   Make sure the Splunk instance has the REST API enabled and that the user has the `search` capability. Refer to the Splunk docs for enabling the management port (default `8089`).
+
 ### Manual Azure Container Registry Push
 
 ```bash
