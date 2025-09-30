@@ -24,20 +24,74 @@ jobs:
         id: secrets-check
         env:
           ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
           ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
           ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
           ACR_NAME: ${{ secrets.ACR_NAME }}
+          AZURE_CONTAINER_REGISTRY: ${{ secrets.AZURE_CONTAINER_REGISTRY }}
           ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
+          AZURE_CONTAINER_REGISTRY_LOGIN_SERVER: ${{ secrets.AZURE_CONTAINER_REGISTRY_LOGIN_SERVER }}
         run: |
+          set -euo pipefail
+
+          resolve_secret() {
+            for name in "$@"; do
+              value="${!name-}"
+              if [ -n "${value:-}" ] && [ "$value" != "undefined" ] && [ "$value" != "null" ]; then
+                printf '%s' "$value"
+                return 0
+              fi
+            done
+            return 1
+          }
+
           missing=false
-          for secret in ARM_CLIENT_ID ARM_TENANT_ID ARM_SUBSCRIPTION_ID ARM_CLIENT_SECRET ACR_NAME ACR_LOGIN_SERVER; do
-            value="${!secret}"
-            if [ -z "$value" ] || [ "$value" = "undefined" ] || [ "$value" = "null" ]; then
-              echo "::warning::Secret $secret is not configured. Azure login and push steps will be skipped."
-              missing=true
-            fi
-          done
+
+          if client_id=$(resolve_secret ARM_CLIENT_ID AZURE_CLIENT_ID); then
+            echo "ARM_CLIENT_ID=$client_id" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Secret ARM_CLIENT_ID (or fallback AZURE_CLIENT_ID) is not configured. Azure login and push steps will be skipped."
+            missing=true
+          fi
+
+          if tenant_id=$(resolve_secret ARM_TENANT_ID AZURE_TENANT_ID); then
+            echo "ARM_TENANT_ID=$tenant_id" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Secret ARM_TENANT_ID (or fallback AZURE_TENANT_ID) is not configured. Azure login and push steps will be skipped."
+            missing=true
+          fi
+
+          if subscription_id=$(resolve_secret ARM_SUBSCRIPTION_ID AZURE_SUBSCRIPTION_ID); then
+            echo "ARM_SUBSCRIPTION_ID=$subscription_id" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Secret ARM_SUBSCRIPTION_ID (or fallback AZURE_SUBSCRIPTION_ID) is not configured. Azure login and push steps will be skipped."
+            missing=true
+          fi
+
+          if client_secret=$(resolve_secret ARM_CLIENT_SECRET AZURE_CLIENT_SECRET); then
+            echo "ARM_CLIENT_SECRET=$client_secret" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Secret ARM_CLIENT_SECRET (or fallback AZURE_CLIENT_SECRET) is not configured. Azure login and push steps will be skipped."
+            missing=true
+          fi
+
+          if acr_name=$(resolve_secret ACR_NAME AZURE_CONTAINER_REGISTRY); then
+            echo "ACR_NAME=$acr_name" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Secret ACR_NAME (or fallback AZURE_CONTAINER_REGISTRY) is not configured. Azure login and push steps will be skipped."
+            missing=true
+          fi
+
+          if acr_login_server=$(resolve_secret ACR_LOGIN_SERVER AZURE_CONTAINER_REGISTRY_LOGIN_SERVER); then
+            echo "ACR_LOGIN_SERVER=$acr_login_server" >> "$GITHUB_ENV"
+          else
+            echo "::warning::Secret ACR_LOGIN_SERVER (or fallback AZURE_CONTAINER_REGISTRY_LOGIN_SERVER) is not configured. Azure login and push steps will be skipped."
+            missing=true
+          fi
 
           if [ "$missing" = "false" ]; then
             echo "has-secrets=true" >> "$GITHUB_OUTPUT"
@@ -49,15 +103,15 @@ jobs:
         uses: azure/login@v2
         if: steps.secrets-check.outputs.has-secrets == 'true'
         with:
-          client-id: ${{ secrets.ARM_CLIENT_ID }}
-          tenant-id: ${{ secrets.ARM_TENANT_ID }}
-          subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
-          client-secret: ${{ secrets.ARM_CLIENT_SECRET }}
+          client-id: ${{ env.ARM_CLIENT_ID }}
+          tenant-id: ${{ env.ARM_TENANT_ID }}
+          subscription-id: ${{ env.ARM_SUBSCRIPTION_ID }}
+          client-secret: ${{ env.ARM_CLIENT_SECRET }}
 
       - name: Docker login to ACR
         if: steps.secrets-check.outputs.has-secrets == 'true'
         env:
-          ACR_NAME: ${{ secrets.ACR_NAME }}
+          ACR_NAME: ${{ env.ACR_NAME }}
         run: |
           if [ -z "$ACR_NAME" ]; then
             echo "ACR_NAME secret is not set"
@@ -71,7 +125,7 @@ jobs:
       - name: Tag Docker image
         if: steps.secrets-check.outputs.has-secrets == 'true'
         env:
-          ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
+          ACR_LOGIN_SERVER: ${{ env.ACR_LOGIN_SERVER }}
         run: |
           if [ -z "$ACR_LOGIN_SERVER" ]; then
             echo "ACR_LOGIN_SERVER secret is not set"
@@ -82,5 +136,5 @@ jobs:
       - name: Push Docker image
         if: steps.secrets-check.outputs.has-secrets == 'true'
         env:
-          ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
+          ACR_LOGIN_SERVER: ${{ env.ACR_LOGIN_SERVER }}
         run: docker push $ACR_LOGIN_SERVER/$IMAGE_NAME:latest
