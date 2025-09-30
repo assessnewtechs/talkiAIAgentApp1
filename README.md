@@ -45,6 +45,15 @@ curl -X POST http://localhost:8000/ask \
      -d '{"question":"Show failed logins last 24h"}'
 ```
 
+To temporarily target a different Splunk instance without editing `.env`, supply the
+`splunk_host` field in the request body:
+
+```bash
+curl -X POST http://localhost:8000/ask \
+     -H "Content-Type: application/json" \
+     -d '{"question":"Show failed logins last 24h","splunk_host":"splunk.backup.local"}'
+```
+
 ### Docker
 
 Build and run the Docker image locally:
@@ -114,7 +123,7 @@ Workflow steps:
 | `AZURE_OPENAI_KEY` | Azure OpenAI API key | – |
 | `AZURE_OPENAI_DEPLOYMENT` | Azure OpenAI deployment name | `gpt-35-turbo` |
 | `AZURE_OPENAI_API_VERSION` | Azure OpenAI API version | `2024-02-15-preview` |
-| `SPLUNK_HOST` | Splunk host | – |
+| `SPLUNK_HOST` | Splunk host (can be overridden per request via `splunk_host`) | – |
 | `SPLUNK_PORT` | Splunk management port | `8089` |
 | `SPLUNK_USERNAME` | Splunk username | – |
 | `SPLUNK_PASSWORD` | Splunk password | – |
@@ -125,7 +134,7 @@ Workflow steps:
 ## API Reference
 
 - `GET /health` → `{ "status": "ok" }`
-- `POST /ask` → `{ "question": "...", "spl_query": "...", "results": [...], "summary": "..." }`
+- `POST /ask` → `{ "question": "...", "splunk_host": "...", "spl_query": "...", "results": [...], "summary": "..." }`
 
 ---
 
