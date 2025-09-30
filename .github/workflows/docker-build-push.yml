@@ -1,0 +1,49 @@
+name: Build and Push Docker image
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  IMAGE_NAME: splunk-ai-agent
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Docker login to ACR
+        env:
+          ACR_NAME: ${{ secrets.ACR_NAME }}
+        run: |
+          if [ -z "$ACR_NAME" ]; then
+            echo "ACR_NAME secret is not set"
+            exit 1
+          fi
+          az acr login --name "$ACR_NAME"
+
+      - name: Build Docker image
+        run: docker build -t $IMAGE_NAME:latest .
+
+      - name: Tag Docker image
+        env:
+          ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
+        run: |
+          if [ -z "$ACR_LOGIN_SERVER" ]; then
+            echo "ACR_LOGIN_SERVER secret is not set"
+            exit 1
+          fi
+          docker tag $IMAGE_NAME:latest $ACR_LOGIN_SERVER/$IMAGE_NAME:latest
+
+      - name: Push Docker image
+        env:
+          ACR_LOGIN_SERVER: ${{ secrets.ACR_LOGIN_SERVER }}
+        run: docker push $ACR_LOGIN_SERVER/$IMAGE_NAME:latest
