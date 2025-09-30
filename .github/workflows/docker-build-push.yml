@@ -27,8 +27,9 @@ jobs:
         run: |
           missing=false
           for secret in ARM_CLIENT_ID ARM_TENANT_ID ARM_SUBSCRIPTION_ID ARM_CLIENT_SECRET ACR_NAME ACR_LOGIN_SERVER; do
-            if [ -z "${!secret}" ]; then
-              echo "::warning::Secret $secret is not set. Azure login and push steps will be skipped."
+            value="${!secret}"
+            if [ -z "$value" ] || [ "$value" = "undefined" ] || [ "$value" = "null" ]; then
+              echo "::warning::Secret $secret is not configured. Azure login and push steps will be skipped."
               missing=true
             fi
           done
