@@ -111,6 +111,10 @@ Required repository secrets (GitHub → Settings → Secrets and variables → A
 - `ACR_NAME`: Name of the Azure Container Registry.
 - `ACR_LOGIN_SERVER`: Login server of the Azure Container Registry (e.g., `myregistry.azurecr.io`).
 
+> If you already follow Azure's `AZURE_CLIENT_ID`/`AZURE_TENANT_ID`/etc. naming convention (for example when reusing secrets
+> from another workflow), the pipeline will automatically fall back to those names. The build will now skip the Azure login and
+> push steps with a warning instead of failing if neither naming convention is configured.
+
 > These are the only values the workflow needs. The application-specific environment variables in [Environment Variables](#environment-variables)
 > are meant for the running API (for example via a local `.env` file, container runtime configuration, or your hosting service) and do **not**
 > need to be duplicated as GitHub Actions secrets unless you explicitly use them in the workflow.
