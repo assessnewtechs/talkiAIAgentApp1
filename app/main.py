@@ -22,7 +22,17 @@ app = FastAPI(title="Splunk AI Agent", version="1.0.0")
 
 
 class AskRequest(BaseModel):
-    question: str = Field(..., min_length=1, description="Natural language question to translate into SPL.")
+    question: str = Field(
+        ..., min_length=1, description="Natural language question to translate into SPL."
+    )
+    splunk_host: str | None = Field(
+        default=None,
+        description=(
+            "Optional Splunk host override for this request. When omitted the service uses"
+            " the default host configured via environment variables."
+        ),
+        example="splunk.internal.example.com",
+    )
 
 
 class AskResponse(BaseModel):
@@ -53,8 +63,10 @@ def ask(request: AskRequest) -> AskResponse:
         logger.exception("Failed to generate SPL query")
         raise HTTPException(status_code=502, detail=f"Failed to generate SPL query: {exc}") from exc
 
+    client = splunk_client if request.splunk_host is None else SplunkClient(host=request.splunk_host)
+
     try:
-        results = splunk_client.run_query(spl_query)
+        results = client.run_query(spl_query)
     except SplunkClientError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     except Exception as exc:  # pragma: no cover - network failure.
