@@ -46,7 +46,8 @@
             letter-spacing: 0.01em;
         }
         input,
-        textarea {
+        textarea,
+        select {
             width: 100%;
             padding: 12px 16px;
             border-radius: 12px;
@@ -57,7 +58,8 @@
             transition: border 0.2s ease, box-shadow 0.2s ease;
         }
         input:focus,
-        textarea:focus {
+        textarea:focus,
+        select:focus {
             outline: none;
             border-color: #38bdf8;
             box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
@@ -146,6 +148,13 @@
                     <label for="splunk_timeout">Timeout (seconds)</label>
                     <input id="splunk_timeout" name="splunk_timeout" type="text" value="30" />
                 </div>
+                <div>
+                    <label for="splunk_verify_ssl">SSL Verification</label>
+                    <select id="splunk_verify_ssl" name="splunk_verify_ssl">
+                        <option value="true" {% if default_verify_ssl %}selected{% endif %}>Verify SSL certificates</option>
+                        <option value="false" {% if not default_verify_ssl %}selected{% endif %}>Disable SSL verification</option>
+                    </select>
+                </div>
             </div>
             <div>
                 <label for="question">Question</label>
@@ -195,6 +204,7 @@
             const host = formData.get('splunk_host').trim();
             const portValue = formData.get('splunk_port').trim();
             const timeoutValue = formData.get('splunk_timeout').trim();
+            const verifySSLValue = formData.get('splunk_verify_ssl');
 
             if (!question) {
                 showMessage('Please enter a question for the Splunk AI Agent.');
@@ -223,6 +233,10 @@
                     return;
                 }
                 payload.splunk_request_timeout = timeoutNumber;
+            }
+
+            if (verifySSLValue) {
+                payload.splunk_verify_ssl = verifySSLValue === 'true';
             }
 
             try {
