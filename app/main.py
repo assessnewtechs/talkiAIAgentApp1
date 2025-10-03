@@ -3,10 +3,13 @@ from __future__ import annotations
 
 import logging
 import os
+from pathlib import Path
 from typing import Any, Dict, List
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
 from .openai_client import AzureOpenAIClient
@@ -19,6 +22,7 @@ logging.basicConfig(level=getattr(logging, log_level, logging.INFO))
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Splunk AI Agent", version="1.0.0")
+templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
 
 
 class AskRequest(BaseModel):
@@ -32,6 +36,11 @@ class AskRequest(BaseModel):
             " the default host configured via environment variables."
         ),
         example="splunk.internal.example.com",
+    )
+    splunk_port: int | None = Field(
+        default=None,
+        description="Optional Splunk management port override for this request.",
+        example=8089,
     )
     splunk_verify_ssl: bool | None = Field(
         default=None,
@@ -85,6 +94,7 @@ def ask(request: AskRequest) -> AskResponse:
     else:
         client = SplunkClient(
             host=request.splunk_host,
+            port=request.splunk_port,
             verify_ssl=request.splunk_verify_ssl,
             timeout=request.splunk_request_timeout,
         )
@@ -112,6 +122,17 @@ def ask(request: AskRequest) -> AskResponse:
     )
     logger.info("Responding with %d results", len(results))
     return response
+
+
+@app.get("/", response_class=HTMLResponse)
+async def read_index(request: Request) -> HTMLResponse:
+    """Serve the interactive homepage."""
+    return templates.TemplateResponse(
+        "index.html",
+        {
+            "request": request,
+        },
+    )
 
 
 __all__ = ["app"]
