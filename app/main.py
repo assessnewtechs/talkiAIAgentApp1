@@ -127,10 +127,13 @@ def ask(request: AskRequest) -> AskResponse:
 @app.get("/", response_class=HTMLResponse)
 async def read_index(request: Request) -> HTMLResponse:
     """Serve the interactive homepage."""
+    verify_ssl_env = os.getenv("SPLUNK_VERIFY_SSL", "true").lower()
+    default_verify_ssl = verify_ssl_env in {"1", "true", "yes", "on"}
     return templates.TemplateResponse(
         "index.html",
         {
             "request": request,
+            "default_verify_ssl": default_verify_ssl,
         },
     )
 
