@@ -54,6 +54,14 @@ curl -X POST http://localhost:8000/ask \
      -d '{"question":"Show failed logins last 24h","splunk_host":"splunk.backup.local"}'
 ```
 
+You can also override SSL verification or the Splunk request timeout for a single call:
+
+```bash
+curl -X POST http://localhost:8000/ask \
+     -H "Content-Type: application/json" \
+     -d '{"question":"Show failed logins last 24h","splunk_verify_ssl":false,"splunk_request_timeout":120}'
+```
+
 ### Docker
 
 Build and run the Docker image locally:

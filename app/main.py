@@ -33,6 +33,19 @@ class AskRequest(BaseModel):
         ),
         example="splunk.internal.example.com",
     )
+    splunk_verify_ssl: bool | None = Field(
+        default=None,
+        description=(
+            "Override for Splunk SSL verification. Set to false to disable certificate"
+            " validation for this specific request."
+        ),
+        example=False,
+    )
+    splunk_request_timeout: float | None = Field(
+        default=None,
+        description="Override for the Splunk request timeout, in seconds, for this call.",
+        example=120,
+    )
 
 
 class AskResponse(BaseModel):
@@ -63,7 +76,18 @@ def ask(request: AskRequest) -> AskResponse:
         logger.exception("Failed to generate SPL query")
         raise HTTPException(status_code=502, detail=f"Failed to generate SPL query: {exc}") from exc
 
-    client = splunk_client if request.splunk_host is None else SplunkClient(host=request.splunk_host)
+    if (
+        request.splunk_host is None
+        and request.splunk_verify_ssl is None
+        and request.splunk_request_timeout is None
+    ):
+        client = splunk_client
+    else:
+        client = SplunkClient(
+            host=request.splunk_host,
+            verify_ssl=request.splunk_verify_ssl,
+            timeout=request.splunk_request_timeout,
+        )
 
     try:
         results = client.run_query(spl_query)
