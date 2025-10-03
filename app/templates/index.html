@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Splunk AI Agent</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+            font-family: "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 35%, #0b1120 100%);
+            color: #e2e8f0;
+        }
+        .card {
+            background: rgba(15, 23, 42, 0.9);
+            box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.6);
+            border-radius: 18px;
+            width: min(960px, 92vw);
+            padding: 32px clamp(24px, 5vw, 48px);
+            backdrop-filter: blur(18px);
+        }
+        h1 {
+            margin-top: 0;
+            font-size: clamp(1.9rem, 2.8vw, 2.6rem);
+            font-weight: 600;
+            text-align: center;
+            color: #38bdf8;
+        }
+        form {
+            display: grid;
+            gap: 18px;
+        }
+        label {
+            font-size: 0.95rem;
+            font-weight: 500;
+            display: block;
+            margin-bottom: 8px;
+            color: #cbd5f5;
+            letter-spacing: 0.01em;
+        }
+        input,
+        textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            background: rgba(15, 23, 42, 0.7);
+            color: inherit;
+            font-size: 1rem;
+            transition: border 0.2s ease, box-shadow 0.2s ease;
+        }
+        input:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #38bdf8;
+            box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
+        }
+        textarea {
+            min-height: 140px;
+            resize: vertical;
+        }
+        button {
+            background: linear-gradient(135deg, #22d3ee, #6366f1);
+            border: none;
+            color: white;
+            padding: 14px 24px;
+            border-radius: 12px;
+            font-size: 1.05rem;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 24px rgba(79, 70, 229, 0.45);
+        }
+        .two-column {
+            display: grid;
+            gap: 16px;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        }
+        .message {
+            margin-top: 24px;
+            padding: 16px 20px;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+        .message.error {
+            background: rgba(248, 113, 113, 0.1);
+            border: 1px solid rgba(248, 113, 113, 0.3);
+            color: #fecaca;
+        }
+        .message.success {
+            background: rgba(34, 211, 238, 0.08);
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            color: #ccfbf1;
+        }
+        .results {
+            margin-top: 32px;
+            display: none;
+        }
+        .results.visible {
+            display: grid;
+            gap: 20px;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-break: break-word;
+            background: rgba(15, 23, 42, 0.7);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(148, 163, 184, 0.28);
+            font-size: 0.9rem;
+            overflow-x: auto;
+        }
+        @media (max-width: 640px) {
+            .card {
+                padding: 24px 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="card">
+        <h1>Splunk AI Agent</h1>
+        <form id="ask-form">
+            <div class="two-column">
+                <div>
+                    <label for="splunk_host">Splunk Host</label>
+                    <input id="splunk_host" name="splunk_host" type="text" placeholder="splunk.example.com" />
+                </div>
+                <div>
+                    <label for="splunk_port">Port</label>
+                    <input id="splunk_port" name="splunk_port" type="text" value="8089" />
+                </div>
+                <div>
+                    <label for="splunk_timeout">Timeout (seconds)</label>
+                    <input id="splunk_timeout" name="splunk_timeout" type="text" value="30" />
+                </div>
+            </div>
+            <div>
+                <label for="question">Question</label>
+                <textarea id="question" name="question" placeholder="e.g. Show failed logins in the last 24 hours" required></textarea>
+            </div>
+            <button type="submit">Ask Splunk AI</button>
+        </form>
+        <div id="form-message" class="message" style="display:none"></div>
+        <section id="results" class="results">
+            <div>
+                <h2>AI Summary</h2>
+                <pre id="summary">No results yet.</pre>
+            </div>
+            <div>
+                <h2>Raw Response</h2>
+                <pre id="raw-json"></pre>
+            </div>
+        </section>
+    </main>
+    <script>
+        const form = document.getElementById('ask-form');
+        const message = document.getElementById('form-message');
+        const resultsSection = document.getElementById('results');
+        const summaryEl = document.getElementById('summary');
+        const rawJsonEl = document.getElementById('raw-json');
+
+        function showMessage(text, type = 'error') {
+            message.textContent = text;
+            message.className = `message ${type}`;
+            message.style.display = 'block';
+        }
+
+        function hideMessage() {
+            message.textContent = '';
+            message.style.display = 'none';
+        }
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            hideMessage();
+            resultsSection.classList.remove('visible');
+            summaryEl.textContent = 'Processing...';
+            rawJsonEl.textContent = '';
+
+            const formData = new FormData(form);
+            const question = formData.get('question').trim();
+            const host = formData.get('splunk_host').trim();
+            const portValue = formData.get('splunk_port').trim();
+            const timeoutValue = formData.get('splunk_timeout').trim();
+
+            if (!question) {
+                showMessage('Please enter a question for the Splunk AI Agent.');
+                return;
+            }
+
+            const payload = { question };
+
+            if (host) {
+                payload.splunk_host = host;
+            }
+
+            if (portValue) {
+                const portNumber = Number(portValue);
+                if (Number.isNaN(portNumber)) {
+                    showMessage('Port must be a number.');
+                    return;
+                }
+                payload.splunk_port = portNumber;
+            }
+
+            if (timeoutValue) {
+                const timeoutNumber = Number(timeoutValue);
+                if (Number.isNaN(timeoutNumber)) {
+                    showMessage('Timeout must be a number.');
+                    return;
+                }
+                payload.splunk_request_timeout = timeoutNumber;
+            }
+
+            try {
+                const response = await fetch('/ask', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    const detail = errorData?.detail ?? 'Unknown error contacting Splunk AI Agent.';
+                    throw new Error(Array.isArray(detail) ? detail.join(', ') : detail);
+                }
+
+                const data = await response.json();
+                summaryEl.textContent = data.summary || 'No summary returned.';
+                rawJsonEl.textContent = JSON.stringify(data, null, 2);
+                resultsSection.classList.add('visible');
+                showMessage('Request completed successfully.', 'success');
+            } catch (error) {
+                summaryEl.textContent = 'No results yet.';
+                rawJsonEl.textContent = '';
+                showMessage(error.message || 'Unexpected error calling Splunk AI Agent.');
+            }
+        });
+    </script>
+</body>
+</html>

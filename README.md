@@ -35,7 +35,8 @@ A production-ready FastAPI service that converts natural language questions into
    uvicorn app.main:app --reload
    ```
 
-5. Access the interactive docs at [http://localhost:8000/docs](http://localhost:8000/docs).
+5. Open the elegant homepage at [http://localhost:8000/](http://localhost:8000/) to ask questions via the web UI.
+6. Access the interactive API docs at [http://localhost:8000/docs](http://localhost:8000/docs).
 
 ### Example Request
 
